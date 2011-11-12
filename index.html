@@ -1,0 +1,24 @@
+<html>
+  <head>
+    <title>Hello WebGL</title>
+    <script id="vshader" type="x-shader/x-vertex">
+      attribute vec3 position;
+      void main()
+      {
+        vec3 pos = 0.1*position;
+        gl_Position = vec4(pos.x, pos.y, pos.z, 1.0);
+      }
+    </script>
+    <script id="fshader" type="x-shader/x-fragment">
+      void main()
+      {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      }
+    </script>
+    <script src="glutil.js"></script>
+    <script src="main.js"></script>
+  </head>
+  <body onload="onLoad();">
+    <canvas id="canvas_main" width="600" height="600"></canvas>
+  </body>
+</html
