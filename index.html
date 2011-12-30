@@ -2,19 +2,25 @@
   <head>
     <title>Hello WebGL</title>
     <script id="vshader" type="x-shader/x-vertex">
-      attribute vec3 position;
+      uniform mat4 transform;
+      attribute vec4 position;
+      attribute vec4 color;
+      varying vec4 color_out;
       void main()
       {
-        vec3 pos = 0.1*position;
-        gl_Position = vec4(pos.x, pos.y, pos.z, 1.0);
+        gl_Position = transform*position;
+        color_out = color;
       }
     </script>
     <script id="fshader" type="x-shader/x-fragment">
+      precision mediump float;
+      varying vec4 color_out;
       void main()
       {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = color_out;
       }
     </script>
+    <script src="transform.js"></script>
     <script src="glutil.js"></script>
     <script src="main.js"></script>
   </head>
