@@ -2,21 +2,26 @@
   <head>
     <title>Hello WebGL</title>
     <script id="vshader" type="x-shader/x-vertex">
-      uniform mat4 transform;
+      uniform mat4 modelview;
+      uniform mat4 projection;
+      uniform vec3 directional_light;
+      uniform float ambient;
       attribute vec4 position;
       attribute vec4 color;
+      attribute vec3 normal;
       varying vec4 color_out;
-      void main()
-      {
-        gl_Position = transform*position;
-        color_out = color;
+      void main() {
+        gl_Position = projection*modelview*position;
+        float dl =
+          max(0.0, dot(normal, (modelview*vec4(directional_light, 0.0)).xyz));
+        float l = ambient + dl;
+        color_out = vec4(l*color.xyz, 1.0);
       }
     </script>
     <script id="fshader" type="x-shader/x-fragment">
       precision mediump float;
       varying vec4 color_out;
-      void main()
-      {
+      void main() {
         gl_FragColor = color_out;
       }
     </script>
@@ -24,7 +29,7 @@
     <script src="glutil.js"></script>
     <script src="main.js"></script>
   </head>
-  <body onload="onLoad();">
+  <body onload="init();">
     <canvas id="canvas_main" width="600" height="600"></canvas>
   </body>
 </html>
