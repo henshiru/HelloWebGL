@@ -12,8 +12,8 @@
       varying vec4 color_out;
       void main() {
         gl_Position = projection*modelview*position;
-        float dl =
-          max(0.0, dot(normal, (modelview*vec4(directional_light, 0.0)).xyz));
+        vec3 normal_camera = normalize((modelview*vec4(normal, 0.0)).xyz);
+        float dl = max(0.0, dot(normal_camera, directional_light));
         float l = ambient + dl;
         color_out = vec4(l*color.xyz, 1.0);
       }

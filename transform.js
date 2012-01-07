@@ -35,6 +35,12 @@ var transform = function(){
       v[2] += v2[2];
       return v;
     };
+    v.sub = function(v2) {
+      v[0] -= v2[0];
+      v[1] -= v2[1];
+      v[2] -= v2[2];
+      return v;
+    };
     v.normalize = function() {
       return v.multiply(1.0/v.abs());
     };
