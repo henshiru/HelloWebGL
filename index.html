@@ -25,6 +25,31 @@
         gl_FragColor = color_out;
       }
     </script>
+    <script id="vshader_aa" type="x-shader/x-vertex">
+      attribute vec4 position;
+      varying vec2 coord;
+      void main() {
+        gl_Position = position;
+        coord = 0.5*(position.xy + vec2(1.0, 1.0));
+      }
+    </script>
+    <script id="fshader_aa" type="x-shader/x-fragment">
+      precision mediump float;
+      uniform sampler2D texture;
+      uniform vec2 texture_size;
+      varying vec2 coord;
+      void main() {
+        vec4 c = vec4(0.0);
+        const int l = 4;
+        for (int i = 0; i < l; ++i) {
+          for (int j = 0; j < l; ++j) {
+            vec2 dc = vec2(float(i) - 1.5, float(j) - 1.5)/texture_size;
+            c += texture2D(texture, coord + dc);
+          }
+        }
+        gl_FragColor = c/float(l*l);
+      }
+    </script>
     <script src="transform.js"></script>
     <script src="glutil.js"></script>
     <script src="main.js"></script>

@@ -3,11 +3,17 @@ function init() {
 
   var camera_distance = 10;
   var offset = transform.translate(0, 0, 0.3);
-  var modelworld = offset;
+  var modelworld;
+  // Event handlers.
   (function() {
     var left_pressed = false;
     var x = 0, y = 0;
     var rx = 0, ry = 0;
+    var get_modelworld = function() {
+      return offset.multiply(transform.rotateY(ry)).multiply(
+          transform.rotateX(rx));
+    };
+    modelworld = get_modelworld();
     canvas.addEventListener("mousedown", function(event) {
         if (event.button == 0) {
           left_pressed = true;
@@ -36,8 +42,7 @@ function init() {
           } else {
             rx += kr*dy;
             ry += kr*dx;
-            modelworld = offset.multiply(transform.rotateY(ry)).multiply(
-                transform.rotateX(rx));
+            modelworld = get_modelworld();
           }
         }
       });
@@ -52,21 +57,19 @@ function init() {
   gl.depthFunc(gl.LEQUAL);
   gl.cullFace(gl.BACK);
   gl.enable(gl.CULL_FACE);
-
   var program = glutil.createProgram(gl, "vshader", "fshader");
-  gl.useProgram(program);
-
   var buffer = gl.createBuffer();
   var indices_buffer = gl.createBuffer();
 
+  var X = 256;
+  var Y = 256;
+  var N = X*Y;
   var data = [];
   var indices = [];
   var setData = function() {
+    gl.useProgram(program);
     var W = 6;
     var H = 6;
-    var X = 256;
-    var Y = 256;
-    var N = X*Y;
     var for_each = function(i0, i1, j0, j1, f) {
       var i, j;
       for (i = i0; i != i1; ++i)
@@ -129,18 +132,6 @@ function init() {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);  
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
 
-    var locPosition = gl.getAttribLocation(program, "position");
-    gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(locPosition);
-
-    var locColor = gl.getAttribLocation(program, "color");
-    gl.vertexAttribPointer(locColor, 3, gl.FLOAT, false, 0, N*3*4);
-    gl.enableVertexAttribArray(locColor);
-
-    var locNormal = gl.getAttribLocation(program, "normal");
-    gl.vertexAttribPointer(locNormal, 3, gl.FLOAT, false, 0, N*3*2*4);
-    gl.enableVertexAttribArray(locNormal);
-
     // indices
     for_each(0, Y - 1, 0, X - 1, function(i, j) {
         indices.push(i*X + j);
@@ -157,7 +148,26 @@ function init() {
   };
   setData();
 
+  var program_aa = glutil.createProgram(gl, "vshader_aa", "fshader_aa");
+  
   var drawScene = function() {
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);  
+
+    var locPosition = gl.getAttribLocation(program, "position");
+    gl.vertexAttribPointer(locPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(locPosition);
+
+    var locColor = gl.getAttribLocation(program, "color");
+    gl.vertexAttribPointer(locColor, 3, gl.FLOAT, false, 0, N*3*4);
+    gl.enableVertexAttribArray(locColor);
+
+    var locNormal = gl.getAttribLocation(program, "normal");
+    gl.vertexAttribPointer(locNormal, 3, gl.FLOAT, false, 0, N*3*2*4);
+    gl.enableVertexAttribArray(locNormal);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices_buffer);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.uniform1f(gl.getUniformLocation(program, "ambient"), 0.2);
@@ -176,6 +186,69 @@ function init() {
 
     gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
   };
-  
-  setInterval(drawScene, 16);
+
+  var buffer_aa = gl.createBuffer();
+  var framebuffer = gl.createFramebuffer();
+  var framebuffer_width = canvas.width*4;
+  var framebuffer_height = canvas.height*4;
+  var texture = gl.createTexture();
+  var renderbuffer = gl.createRenderbuffer();
+  var prepareTexture = function() {
+    gl.useProgram(program_aa);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, framebuffer_width,
+                  framebuffer_height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16,
+                           framebuffer_width, framebuffer_height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+                            gl.TEXTURE_2D, texture, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT,
+                               gl.RENDERBUFFER, renderbuffer);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    var data = [
+        -1.0, -1.0,
+        1.0, -1.0,
+        -1.0, 1.0,
+        1.0, 1.0,
+    ];
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer_aa);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+  };
+  prepareTexture();
+
+  var drawTexture = function() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.viewport(0, 0, framebuffer_width, framebuffer_height);
+    drawScene();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    
+    gl.useProgram(program_aa);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer_aa);
+    var locPosition = gl.getAttribLocation(program_aa, "position");
+    gl.vertexAttribPointer(locPosition, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(locPosition);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(gl.getUniformLocation(program_aa, "texture"), 0);
+
+    gl.uniform2f(gl.getUniformLocation(program_aa, "texture_size"),
+                 framebuffer_width, framebuffer_height);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  };
+  setInterval(drawTexture, 16);
 }
